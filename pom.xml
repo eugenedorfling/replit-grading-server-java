@@ -65,6 +65,22 @@
             </plugin>
 
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.2.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+                            <addClasspath>true</addClasspath>
+                            <mainClass>Main</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <plugin>
                 <artifactId>maven-resources-plugin</artifactId>
                 <version>3.1.0</version>
                 <executions>
@@ -98,6 +114,16 @@
                 <executions>
                     <execution>
                         <id>copy-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>copy-runtime-dependencies</id>
                         <phase>package</phase>
                         <goals>
                             <goal>copy-dependencies</goal>

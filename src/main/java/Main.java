@@ -7,17 +7,15 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.Executors;
-import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Main {
 
-  private static final ThreadLocal<Consumer<String>> log = new ThreadLocal<>();
   public static void main(String[] args) {
     Javalin app = Javalin.create().start(8080);
     app.get("/", ctx -> {
@@ -40,20 +38,12 @@ public class Main {
            Path temp = Files.createTempDirectory("autograder_");
            System.err.println(temp.toString());
 
-           StringBuilder sb = new StringBuilder();
-           Consumer<String> console = (string) -> {
-             sb.append(string).append("\n");
-             System.err.println(string);
-           };
-
-           log.set(console);
            copy(upload, temp.toString());
-           compile(temp.toString());
-           test(temp.toString());
+           String compileOutput = compile(temp.toString());
+           String testOutput = test(temp.toString());
 
            ctx.contentType("text/plain");
-           ctx.result(sb.toString());
-           log.remove();
+           ctx.result(compileOutput + "\n\n" + testOutput);
 
          } catch (IOException ex) {
            throw new IllegalStateException("Unable to process submission file", ex);
@@ -77,6 +67,8 @@ public class Main {
 
   // copy the uploaded file and any other files necessary for compilation and testing
   private static void copy(UploadedFile upload, String directory) {
+    System.err.println("Copying in " + directory);
+
     // copy the submission to the work directory
     String submission = Paths.get(directory, upload.getFilename()).toString();
     FileUtil.streamToFile(upload.getContent(), submission);
@@ -91,7 +83,6 @@ public class Main {
     String lib;
     try {
       while ((lib = br.readLine()) != null) {
-        System.err.println(lib);
         FileUtil.streamToFile(resource("META-INF/lib/" + lib), Paths.get(directory, lib).toString());
       }
     } catch (IOException ex) {
@@ -99,28 +90,33 @@ public class Main {
     }
   }
 
-  private static void compile(String directory) {
+  private static String compile(String directory) {
+    System.err.println("Compiling in " + directory);
+
     try {
       ProcessBuilder pb = new ProcessBuilder();
       pb.command("javac", "-cp", ".;*", "*.java");
+//      pb.command("javac", "-cp", ".:*", "Example.java", "ExampleTest.java");
       pb.directory(new File(directory));
       pb.redirectErrorStream(true);
       Process process = pb.start();
 
-      StreamGobbler sg = new StreamGobbler(process.getInputStream(), log.get());
-
-      Executors.newSingleThreadExecutor().submit(sg);
-
+      String result = new String(process.getInputStream().readAllBytes(), StandardCharsets.US_ASCII);
       process.waitFor();
+      return result;
 
     } catch (IOException ex) {
       throw new IllegalStateException("Unable to compile submission", ex);
     } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
+      System.err.println("Interrupted");
+      return null;
     }
   }
 
-  private static void test(String directory) {
+  private static String test(String directory) {
+    System.err.println("Testing in " + directory);
+
     try {
       ProcessBuilder pb = new ProcessBuilder();
       pb.command("java",
@@ -128,38 +124,23 @@ public class Main {
           "-cp", ".",
           "-c", "ExampleTest",
           "--disable-ansi-colors", "--disable-banner",
-          "--details=none", "--details-theme=ascii"
+          "--details=summary", "--details-theme=ascii"
       );
       pb.directory(new File(directory));
       pb.redirectErrorStream(true);
       Process process = pb.start();
 
-      StreamGobbler sg = new StreamGobbler(process.getInputStream(), log.get());
-
-      Executors.newSingleThreadExecutor().submit(sg);
-
+      String result = new String(process.getInputStream().readAllBytes(), StandardCharsets.US_ASCII);
       process.waitFor();
+      return result;
 
     } catch (IOException ex) {
       throw new IllegalStateException("Unable to compile submission", ex);
-    } catch (InterruptedException ex) {
+    }
+    catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
+      System.err.println("Interrupted");
+      return null;
     }
   }
-
-  private static class StreamGobbler implements Runnable {
-    private final InputStream inputStream;
-    private final Consumer<String> consumer;
-
-    public StreamGobbler(InputStream inputStream, Consumer<String> consumer) {
-      this.inputStream = inputStream;
-      this.consumer = consumer;
-    }
-
-    @Override
-    public void run() {
-      new BufferedReader(new InputStreamReader(inputStream)).lines().forEach(consumer);
-    }
-  }
-
 }
