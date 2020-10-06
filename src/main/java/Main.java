@@ -31,14 +31,8 @@ public class Main {
 
   private static final String SUBMISSION_FILE_NAME = SUBMISSION_CLASS_NAME + ".java";
   private static final String TEST_FILE_NAME = TEST_CLASS_NAME + ".java";
-
-  private static final Pattern TEST_OUTPUT_PATTERN = Pattern.compile(
-      "(\\d+) tests successful" +
-      ".*" +
-      "(\\d+) tests failed",
-      Pattern.DOTALL
-  );
-
+  private static final Pattern TEST_OUTPUT_PATTERN = Pattern.compile("(\\d+) tests successful.*(\\d+) tests failed", Pattern.DOTALL);
+  private static final String REPORT_TEMPLATE = "### %s submitted at %s\n* **Passed:** %d\n* **Failed:** %d\n* **Score:** %d%%\n";
   private static final DateFormat DATE_FORMAT = new SimpleDateFormat("dd MMMMMMMMMM yyyy hh:mma");
   private static String OS = System.getProperty("os.name").toLowerCase();
 
@@ -61,10 +55,8 @@ public class Main {
            if (!SUBMISSION_FILE_NAME.equals(filename))
              throw new IllegalArgumentException("Uploaded file is not a Java source file for class " + SUBMISSION_CLASS_NAME);
 
-           // fixme: slurp the file and figure out the student number, or accept a param?
-
            String temp = Files.createTempDirectory("autograder_").toString();
-           System.err.println(temp);
+           // System.err.println(temp);
 
            copy(upload, temp);
            compile(temp);
@@ -99,7 +91,7 @@ public class Main {
 
   // copy the uploaded file and any other files necessary for compilation and testing
   private static void copy(UploadedFile upload, String directory) throws Exception {
-    System.err.println("Copying in " + directory);
+    // System.err.println("Copying in " + directory);
 
     // copy the submission to the work directory
     String submission = Paths.get(directory, upload.getFilename()).toString();
@@ -119,7 +111,7 @@ public class Main {
   }
 
   private static String compile(String directory) throws Exception {
-    System.err.println("Compiling in " + directory);
+    // System.err.println("Compiling in " + directory);
 
     ProcessBuilder pb = new ProcessBuilder();
     if (OS.contains("win"))
@@ -136,7 +128,7 @@ public class Main {
   }
 
   private static String test(String directory) throws Exception {
-    System.err.println("Testing in " + directory);
+    // System.err.println("Testing in " + directory);
 
     ProcessBuilder pb = new ProcessBuilder();
     pb.command("java",
@@ -164,19 +156,15 @@ public class Main {
     int failed = Integer.parseInt(matcher.group(2));
 
     int score = (int) ((((double) passed) / ((double) (passed + failed))) * 100);
-    System.err.println("score: " + score);
+    // System.err.println("score: " + score);
 
     String code = Files.readString(Paths.get(workspace, SUBMISSION_FILE_NAME));
     String sn = extractStudentNumber(code);
 
     String date = DATE_FORMAT.format(new Date());
-    String template = "### %s submitted at %s\n" +
-        "* **Passed:** %d\n" +
-        "* **Failed:** %d\n" +
-        "* **Score:** %d%%\n";
 
-    String report = String.format(template, sn, date, passed, failed, score);
-    System.err.println(report);
+    String report = String.format(REPORT_TEMPLATE, sn, date, passed, failed, score);
+    // System.err.println(report);
 
     save(sn, report, workspace);
   }
@@ -199,5 +187,7 @@ public class Main {
 
     Files.copy(Paths.get(workspace, SUBMISSION_FILE_NAME), Paths.get(dir.getAbsolutePath(), SUBMISSION_FILE_NAME));
     Files.writeString(Paths.get(dir.getAbsolutePath(), "report.md"), report, StandardCharsets.US_ASCII);
+
+    System.err.println("Submission received from " + sn + "\n" + report);
   }
 }
