@@ -71,8 +71,6 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-                            <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
                             <addClasspath>true</addClasspath>
                             <mainClass>Main</mainClass>
                         </manifest>
@@ -97,8 +95,7 @@
                                     <directory>src/main/java</directory>
                                     <filtering>false</filtering>
                                     <includes>
-                                        <include>ExampleTest.java</include>
-                                        <include>ReadyForSubmission.java</include>
+                                        <include>*Test.java</include>
                                     </includes>
                                 </resource>
                             </resources>
